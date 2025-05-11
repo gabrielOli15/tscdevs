@@ -1,0 +1,176 @@
+#include "TOTVS.ch"
+#include 'tlpp-core.th'
+#include "FWMVCDEF.CH"
+
+namespace custom.api.utils
+
+/*/{Protheus.doc} getQueryParam
+Função para obter os parâmetros da query string. 
+@type user function
+@author gabriel.antonio@totvs.com.br
+@since 11/05/2025
+/*/ 
+User Function getQueryParam(cName as Character) as Character
+    
+    Local cParamText as Character
+
+    cParamText := oRest:getQueryRequest():GetJsonText(cName)
+    If cParamText == 'null'
+        If cName == 'page'
+            cParamText := '1'
+        ElseIf cName == 'pagesize'
+            cParamText := '10'
+        Else
+            cParamText := ''
+        EndIf
+    EndIf
+Return cParamText
+
+
+
+/*/{Protheus.doc} getQuery
+Função que retorna a query SQL de acordo com a tabela.
+@type function
+@version  
+@author gabriel.antonio@totvs.com.br
+@since 11/05/2025
+/*/
+User Function getQuery(cTable as Character) as Character
+    Local cQuery as Character
+    cQuery := "SELECT #QueryFields# FROM " + RetSqlName(cTable) + " " + cTable
+    cQuery += " WHERE #QueryWhere#"
+Return cQuery
+
+/*/{Protheus.doc} searchRecord
+Função que procura pelo registro de acordo com a tabela.
+Ações:
+Seleciona a área da tabela.
+Define a ordem de índice e move para o topo.
+Procura pelo registro usando DbSeek.
+Se o registro não for encontrado, define uma falha de REST e retorna falso.
+
+@type user function
+@author user
+@since 26/07/2024
+/*/ 
+User Function searchRecord(cId as Character, cTable as Character, nInd as Numeric) as Logical
+    Local lRet as Logical
+
+    lRet := .T.
+
+    DbSelectArea(cTable)
+    (cTable)->(DbSetOrder(nInd))
+    (cTable)->(dbGoTop())
+    
+    If !(cTable)->(DbSeek(FwxFilial(cTable)+cId))
+        SetRestFault(400, "Registro nao encontrado")
+        lRet := .F.
+    EndIf
+
+Return lRet
+
+/*/{Protheus.doc} setOperationModel
+Função que define a operação no modelo.
+Ações:
+Define a operação do modelo como inserção, atualização ou exclusão com base no valor de nOperation.
+@type user function
+@author user
+@since 26/07/2024
+/*/ 
+User Function setOperationModel(oModel as Object, nOperation as Numeric)
+    If nOperation == 3
+		oModel:SetOperation(MODEL_OPERATION_INSERT)
+	Elseif nOperation == 4
+		oModel:SetOperation(MODEL_OPERATION_UPDATE)
+	Elseif nOperation == 5
+		oModel:SetOperation(MODEL_OPERATION_DELETE)
+	Endif
+Return Nil
+
+/*/{Protheus.doc} setValue
+Função que define os valores a serem incluídos/alterados no modelo.
+Ações:
+Itera sobre os dados fornecidos e define os valores no modelo, exceto para o campo de ID da tabela.
+Retorna verdadeiro se todos os valores forem definidos com sucesso, caso contrário, retorna falso.
+
+@type user function
+@author user
+@since 26/07/2024
+/*/ 
+User Function setValue(aData as Array, oModel as Object, cTable as Character) as Logical
+    Local nX as Numeric
+    Local lRet as Logical
+
+    lRet := .T.
+    For nX := 1 To Len(aData)
+        If (aData[nX,1] != cTable + "_ID")
+            If !oModel:SetValue(aData[nX,1], aData[nX,2])
+                lRet := .F.
+                Exit
+            EndIf
+        EndIf
+    Next
+Return lRet
+
+/*/{Protheus.doc} getError
+Função que retorna o erro do modelo.
+Ações:
+Itera sobre a lista de mensagens de erro e concatena as mensagens em uma string, removendo caracteres indesejados.
+@type user function
+@author user
+@since 26/07/2024
+/*/ 
+User Function getError(aMsgError as Array)
+    Local cError as Character
+    Local nError as Numeric
+
+    For nError := 1 To Len(aMsgError)
+        If ValType(aMsgError[nError]) == "C"
+            cError += StrTran( StrTran( aMsgError[nError], "<", "" ), "-", "" ) + (" ")
+        EndIf
+    Next
+Return cError
+
+/*/{Protheus.doc} buildData
+Função que faz o mapeamento das informações de acordo com o HashFields.
+Ações:
+Itera sobre os nomes dos campos no corpo JSON e adiciona os pares campo-valor ao array aData com base no mapeamento de oHashFields.
+@type user function
+@author user
+@since 26/07/2024
+/*/ 
+User Function buildData(jBody as Json, oResource as Object) as Array
+    Local aData as Array
+    Local aFields as Array
+    Local nField as Numeric
+    Local cField as Character
+
+    aData := {}
+    aFields := {}
+
+    aFields := jBody:GetNames()
+
+    For nField := 1 To Len(aFields)
+        If oResource:oHashFields:get(aFields[nField], @cField)
+            aAdd(aData, {cField, jBody[aFields[nField]]})
+        EndIf
+    Next
+Return aData
+
+
+/*/{Protheus.doc} zFormat
+    Função que formata e retorna o valor de acordo com o tipo.
+    Ações:
+    Formata o valor fornecido com base no tipo especificado (por exemplo, remove espaços em branco para valores de tipo "C").
+
+    @type  User Function
+    @author user
+    @since 03/10/2024
+    @version version
+/*/
+User Function zFormat(cValor, cTipo)
+    Do Case
+        Case cTipo == "C"
+            cValor := Alltrim(cValor)  
+    EndCase
+Return cValor
