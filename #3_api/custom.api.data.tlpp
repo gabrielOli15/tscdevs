@@ -2,7 +2,6 @@
 #include "tlpp-core.th"
 
 namespace custom.api
-using namespace custom.api.utils
 
 /*/{Protheus.doc} apiData
 description
@@ -33,7 +32,6 @@ Method new(cVerb as Character) as Object Class apiData
     _Super:new(cVerb, .T.)
 Return Self
 
-
 /*/{Protheus.doc} getTable
 Método para obter dados de uma tabela específica.
 @type method
@@ -49,18 +47,20 @@ Método para obter dados de uma tabela específica.
 /*/ 
 Method getTable(nPage as Numeric, nPageSize as Numeric, cFilter as Character,;
     cFields as Character, cSort as Character, cTable as Character) Class apiData
+
     Local aArea as Array
     Local aFilter as Array
     Local cWhere as Character
+    Local cQuery as Character
 
+    aArea := FwGetArea()
     aFilter := {}
     cWhere  := ""
+    cQuery  := "SELECT #QueryFields# FROM " + RetSqlName(cTable) + " " + cTable + " WHERE #QueryWhere#"
   
     If !cTable $ aliasDic()
         cWhere := " D_E_L_E_T_ = ''"
     EndIf
-
-    aArea   := FwGetArea()
 
     AddMapFields(self,cTable)
 
@@ -79,7 +79,7 @@ Method getTable(nPage as Numeric, nPageSize as Numeric, cFilter as Character,;
 
     ::SetPage(nPage)
     ::SetPageSize(nPageSize)
-    ::SetQuery(u_getQuery(cTable))
+    ::SetQuery(cQuery)
     ::SetWhere(cWhere)
 
     If !cTable $ aliasDic()
